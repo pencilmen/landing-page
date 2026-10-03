@@ -1,0 +1,447 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
+
+:root {
+    --base-100 : #fff;
+    --base-200 : #7a7a7a;
+    --base-300 : #000;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+h1 {
+    text-transform: uppercase;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size:clamp(5rem, 15vw, 15rem);
+    font-weight: 800;
+    letter-spacing: -2%;
+    line-height: 0.8;
+}
+
+p{
+    text-transform: uppercase;
+    font-family: "Google Sans Flex", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+}
+
+h1 .word, p .line {
+    position: relative;
+    transform: translateY(100%);
+    will-change: transform;
+}
+
+.preloader-backdrop {
+    position: fixed;
+    width: 100%;
+    height: 100svh;
+    background-color: var(--base-100);
+    color : var(--base-200);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 0;
+}
+
+.pb-row {
+    width: 100%;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.pb-row #pb-logo {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.25rem;
+    border : 1px dashed var(--base-200);
+}
+
+.preloader {
+    position: fixed;
+    width: 100%;
+    height: 100svh;
+    background-color: var(--base-300);
+    color : var(--base-200);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    will-change: transform, clip-path;
+    z-index: 20;
+}
+
+.p-row {
+    width: 100%;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.p-row .p-col {
+    display: flex;
+    gap: 6rem;
+    align-items: flex-end;
+}
+
+.pre-loader-button-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: clamp(14rem, 64vw, 20rem);
+    height: clamp(14rem, 64vw, 20rem);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.pbc-svg-strokes,
+#pbc-logo,
+#pbc-label,
+#pbc-outro-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+} 
+
+#pbc-logo {
+    width: 4rem;
+    height: 4rem;
+}
+
+#pbc-label,
+#pbc-outro-label {
+    font-size : 0.9rem;
+}
+
+
+.pbc-svg-strokes,
+.pbc-svg-strokes svg {
+    width: 100%;
+    height: 100%;
+    will-change: transform;
+}
+
+
+nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 2rem;
+    width: auto;
+    max-width: calc(100% - 14rem);
+    display: flex;
+    gap: 3.5rem;
+    z-index: 5;
+    color: var(--base-100);
+    opacity: 0;
+}
+
+nav p {
+    text-transform: uppercase;
+    font-family: "Google Sans Flex", sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.5rem;
+    letter-spacing: 0.15rem;
+}
+
+.container {
+    position: relative;
+    width: 100%;
+    height: 600vh;
+}
+
+.hero {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100svh;
+    background-color: var(--base-300);
+    color: var(--base-100);
+    transform: scale(0.75);
+    will-change: transform;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.hero .preloader-revealer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--base-100);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    will-change: clip-path;
+    z-index: 10;
+}
+
+.about-copy {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    padding: clamp(1.5rem, 3.5vw, 2.5rem);
+    display: flex;
+    gap: clamp(1.5rem, 3.5vw, 4rem);
+}
+
+.copy-block {
+    flex: 1;
+    min-width: 0;
+}
+
+.copy-block p {
+    font-size: clamp(1.2rem, 1.85vw, 1.75rem);
+    font-weight: 450;
+    letter-spacing: -0.025rem;
+    line-height: 1.32;
+}
+
+.copy-block p .word {
+    will-change: transform;
+}
+
+.scroll-indicator {
+    position: absolute;
+    width: 10rem;
+    height: 0.1rem;
+    top: 2rem;
+    right: 2rem;
+    background-color: #2f2f2f;
+    z-index: 5;
+}
+
+.scroll-indicator::after {
+    content: " ";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #fbfbfb;
+    transform-origin: left;
+    transform: scaleX(var(--progress, 0));
+    will-change: transform;
+}
+
+.marquee {
+    position: absolute;
+    left: 0;
+    bottom: 2rem;
+    width: 100%;
+    height: 7rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    z-index: 5;
+}
+
+.marquee-track {
+    display: flex;
+    gap: 0.75rem;
+    will-change: transform;
+}
+
+.marquee-item {
+    width: 10rem;
+    height: 6rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.marquee-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+html, body {
+    scrollbar-width: none;
+    background-color: var(--base-300);
+}
+
+/* iPad / Tablet (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .pb-row .pb-col:nth-child(1),
+    .pb-row .pb-col:nth-child(2),
+    .pb-row .pb-col:nth-child(5) {
+        display: none;
+    }
+
+    .p-row .p-col {
+        gap: 3rem;
+    }
+
+    .pre-loader-button-container {
+        width: clamp(16rem, 28vw, 20rem);
+        height: clamp(16rem, 28vw, 20rem);
+    }
+
+    nav {
+        width: auto;
+        max-width: calc(100% - 12rem);
+        gap: clamp(2rem, 4vw, 3.5rem);
+        padding: 2rem;
+    }
+
+    .scroll-indicator {
+        width: clamp(6rem, 12vw, 9rem);
+        top: 2rem;
+        right: 2rem;
+    }
+
+    .about-copy {
+        flex-direction: row;
+        gap: clamp(1.5rem, 2.8vw, 2.5rem);
+        padding: 0 clamp(1.5rem, 3vw, 2.5rem);
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .copy-block p {
+        font-size: clamp(1.1rem, 1.75vw, 1.35rem);
+        line-height: 1.35;
+    }
+
+    .marquee {
+        bottom: 2rem;
+        height: 6rem;
+    }
+
+    .marquee-item {
+        width: 8.5rem;
+        height: 5.25rem;
+    }
+}
+
+/* Mobile (< 768px) */
+@media (max-width: 767px) {
+    .pb-row {
+        padding: 1.25rem;
+    }
+
+    .pb-row .pb-col:nth-child(1),
+    .pb-row .pb-col:nth-child(2),
+    .pb-row .pb-col:nth-child(4),
+    .pb-row .pb-col:nth-child(5) {
+        display: none;
+    }
+
+    .p-row {
+        padding: 1.25rem;
+    }
+
+    .p-row .p-col {
+        gap: 1.5rem;
+    }
+
+    .p-row .p-col .p-sub-col p {
+        font-size: 0.65rem;
+    }
+
+    .pre-loader-button-container {
+        width: clamp(14rem, 64vw, 18rem);
+        height: clamp(14rem, 64vw, 18rem);
+        touch-action: manipulation;
+    }
+
+    #pbc-logo {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    #pbc-label,
+    #pbc-outro-label {
+        font-size: 0.8rem;
+    }
+
+    /* As requested: In mobile remove "First Second Event" line completely */
+    nav {
+        display: none !important;
+    }
+
+    /* Show progress bar only at top-right */
+    .scroll-indicator {
+        top: 1.25rem;
+        right: 1.25rem;
+        width: clamp(4.5rem, 22vw, 6.5rem);
+        height: 2px;
+    }
+
+    /* As requested: Stacked column on mobile, dynamically centered between top bar and marquee */
+    .about-copy {
+        flex-direction: column;
+        top: 45%;
+        transform: translateY(-50%);
+        padding: 0 1.5rem;
+        gap: clamp(1.1rem, 2.5vh, 1.6rem);
+    }
+
+    .copy-block {
+        width: 100%;
+    }
+
+    .copy-block p {
+        font-size: clamp(1.05rem, 3.8vw, 1.25rem);
+        font-weight: 450;
+        letter-spacing: -0.02rem;
+        line-height: 1.36;
+    }
+
+    /* Scaled marquee for mobile */
+    .marquee {
+        bottom: 1.25rem;
+        height: 5rem;
+    }
+
+    .marquee-track {
+        gap: 0.5rem;
+    }
+
+    .marquee-item {
+        width: 7.25rem;
+        height: 4.5rem;
+        border-radius: 0.75rem;
+    }
+}
+
+/* Small mobile (e.g. iPhone SE <= 380px) */
+@media (max-width: 380px) {
+    .pre-loader-button-container {
+        width: 13rem;
+        height: 13rem;
+    }
+
+    .about-copy {
+        padding: 0 1rem;
+        gap: 0.85rem;
+    }
+
+    .copy-block p {
+        font-size: 0.98rem;
+        line-height: 1.32;
+    }
+
+    .marquee {
+        height: 4.5rem;
+        bottom: 1rem;
+    }
+
+    .marquee-item {
+        width: 6.25rem;
+        height: 3.85rem;
+    }
+}
