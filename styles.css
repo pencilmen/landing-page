@@ -127,6 +127,11 @@ h1 .word, p .line {
     will-change: transform;
 }
 
+.stroke-progress {
+    stroke: #00F0FF;
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.45));
+}
+
 
 nav {
     position: fixed;
