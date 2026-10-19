@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
 
 :root {
     --base-100 : #fff;
@@ -12,9 +12,13 @@
     box-sizing: border-box;
 }
 
+body {
+    font-family: 'Onest', sans-serif;
+}
+
 h1 {
     text-transform: uppercase;
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Onest', sans-serif;
     font-size:clamp(5rem, 15vw, 15rem);
     font-weight: 800;
     letter-spacing: -2%;
@@ -23,7 +27,7 @@ h1 {
 
 p{
     text-transform: uppercase;
-    font-family: "Google Sans Flex", sans-serif;
+    font-family: 'Onest', sans-serif;
     font-size: 0.75rem;
     font-weight: 500;
     line-height: 1;
@@ -149,7 +153,7 @@ nav {
 
 nav p {
     text-transform: uppercase;
-    font-family: "Google Sans Flex", sans-serif;
+    font-family: 'Onest', sans-serif;
     font-size: 0.8rem;
     line-height: 1.5rem;
     letter-spacing: 0.15rem;
@@ -274,6 +278,7 @@ nav p {
 }
 
 html, body {
+    font-family: 'Onest', sans-serif;
     scrollbar-width: none;
     background-color: var(--base-300);
 }

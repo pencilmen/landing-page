@@ -287,8 +287,16 @@ function init() {
     });
 }
 
+function start() {
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(init);
+    } else {
+        init();
+    }
+}
+
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", start);
 } else {
-    init();
+    start();
 }
