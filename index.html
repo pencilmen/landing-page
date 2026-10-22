@@ -4,12 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neel Portfolio</title>
+    <!-- Preconnect for external typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="./styles.css" />
+
+    <!-- ESM Dependency Map: Three.js engine, post-processing shaders, GSAP suite, and Lenis -->
     <script type="importmap">
     {
         "imports": {
+            "three": "https://esm.sh/three@0.185.1",
+            "three/examples/jsm/postprocessing/ShaderPass.js": "https://esm.sh/three@0.185.1/examples/jsm/postprocessing/ShaderPass.js",
+            "three/examples/jsm/shaders/HorizontalBlurShader.js": "https://esm.sh/three@0.185.1/examples/jsm/shaders/HorizontalBlurShader.js",
+            "three/examples/jsm/shaders/VerticalBlurShader.js": "https://esm.sh/three@0.185.1/examples/jsm/shaders/VerticalBlurShader.js",
             "gsap": "https://esm.sh/gsap",
             "gsap/SplitText": "https://esm.sh/gsap/SplitText",
             "gsap/CustomEase": "https://esm.sh/gsap/CustomEase",
@@ -20,50 +27,26 @@
     </script>
 </head>
 <body>
+    <!-- Background grid backdrop exposed when preloader scales down -->
     <div class="preloader-backdrop">
-
         <div class="pb-row">
-
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
         </div>
 
         <div class="pb-row">
-
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-            <div class="pb-col">
-                <p>SYSTEM</p>
-            </div>
-
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
+            <div class="pb-col"><p>SYSTEM</p></div>
         </div>
-
     </div>
 
+    <!-- Interactive Terminal Preloader: Displays system startup sequence and entrance button -->
     <div class="preloader">
         <div class="p-row">
             <p>LOADING</p>
@@ -79,16 +62,17 @@
                     <p> PHASE 2</p>   
                     <p> SEQUENCING</p>
                 </div>
-
             </div>
             <div class="p-col">
                 <p> PHASE 3</p>
             </div>
         </div>
         
+        <!-- Central circular trigger: Tracks load progress and receives user click to enter -->
         <div class="pre-loader-button-container">
             <div class="pbc-svg-strokes">
                 <svg viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Background SVG track -->
                     <circle 
                     class="stroke-track"
                     cx="160"
@@ -100,6 +84,7 @@
                     stroke-dashoffset="974"
                     />
 
+                    <!-- Animated cyan stroke progress meter -->
                     <circle 
                     class="stroke-progress"
                     cx="160"
@@ -113,22 +98,39 @@
                 </svg>
             </div>
 
+            <!-- Preloader logo and status labels -->
             <img id="pbc-logo" src="./logo.png" alt="">
-
-            <p id ="pbc-label"> Enter </p>
+            <p id="pbc-label"> Enter </p>
             <p id="pbc-outro-label"> Access Granted</p>
         </div>
     </div>
 
+    <!-- Top navigation bar (Hidden via CSS) -->
     <nav>
         <p>First Event</p>
         <p>Second Event</p>
     </nav>
 
+    <!-- Main scroll container: Extended height pins the hero section for scroll-driven choreographies -->
     <div class="container">
+        <!-- Pinned hero viewport containing WebGL canvas, quotes, and marquee -->
         <section class="hero">
+            <!-- Wipe curtain used during the preloader exit transition -->
             <div class="preloader-revealer"></div>
             
+            <!-- Opening 3D Sliced Gooey Hero section -->
+            <div class="sliced-gooey-hero">
+                <!-- Three.js WebGL2 canvas rendering the rotating sliced metallic text ribbons -->
+                <canvas id="gooey-hero-canvas"></canvas>
+
+                <!-- Subtle animated exploration indicator -->
+                <div class="hero-scroll-prompt">
+                    <span>SCROLL TO EXPLORE</span>
+                    <div class="scroll-prompt-line"></div>
+                </div>
+            </div>
+            
+            <!-- Pinned quote typography blocks (revealed in phases as user scrolls) -->
             <div class="about-copy">
                 <div class="copy-block">
                     <p>
@@ -147,6 +149,7 @@
                 </div>
             </div>
 
+            <!-- Infinite image marquee: Driven by scroll velocity via Lenis and GSAP ticker -->
             <div class="marquee">
                 <div class="marquee-track">
                     <div class="marquee-item"><img src="./src/1.jpg" alt=""></div>
@@ -162,11 +165,12 @@
                 </div>
             </div>
 
+            <!-- Top-right scroll progress bar indicator (Hidden via CSS) -->
             <div class="scroll-indicator"></div>
         </section>
     </div>
 
+    <!-- Application entry point module -->
     <script type="module" src="./script.js"></script>
 </body>
-
 </html>
