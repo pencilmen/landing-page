@@ -1,11 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
 
+/* ==========================================================================
+   Design Tokens & Global CSS Variables
+   ========================================================================== */
 :root {
-    --base-100 : #fff;
-    --base-200 : #7a7a7a;
-    --base-300 : #000;
+    --base-100: #fff;       /* Pure white highlights and text */
+    --base-200: #7a7a7a;    /* Muted secondary grey text & borders */
+    --base-300: #000;       /* Void black background */
 }
 
+/* Base reset */
 * {
     margin: 0;
     padding: 0;
@@ -16,16 +20,17 @@ body {
     font-family: 'Onest', sans-serif;
 }
 
+/* Typography styles */
 h1 {
     text-transform: uppercase;
     font-family: 'Onest', sans-serif;
-    font-size:clamp(5rem, 15vw, 15rem);
+    font-size: clamp(5rem, 15vw, 15rem);
     font-weight: 800;
     letter-spacing: -2%;
     line-height: 0.8;
 }
 
-p{
+p {
     text-transform: uppercase;
     font-family: 'Onest', sans-serif;
     font-size: 0.75rem;
@@ -33,18 +38,24 @@ p{
     line-height: 1;
 }
 
+/* Initial state for SplitText lines/words (hidden below masks) */
 h1 .word, p .line {
     position: relative;
     transform: translateY(100%);
     will-change: transform;
 }
 
+/* ==========================================================================
+   Preloader Section
+   ========================================================================== */
+
+/* Fixed background grid revealed when the preloader circle scales down to 0.75 */
 .preloader-backdrop {
     position: fixed;
     width: 100%;
     height: 100svh;
     background-color: var(--base-100);
-    color : var(--base-200);
+    color: var(--base-200);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -62,15 +73,16 @@ h1 .word, p .line {
     width: 2.5rem;
     height: 2.5rem;
     padding: 0.25rem;
-    border : 1px dashed var(--base-200);
+    border: 1px dashed var(--base-200);
 }
 
+/* Preloader black cover with initial clip-path rectangle */
 .preloader {
     position: fixed;
     width: 100%;
     height: 100svh;
     background-color: var(--base-300);
-    color : var(--base-200);
+    color: var(--base-200);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -92,6 +104,7 @@ h1 .word, p .line {
     align-items: flex-end;
 }
 
+/* Central interactive preloader button */
 .pre-loader-button-container {
     position: absolute;
     top: 50%;
@@ -120,9 +133,8 @@ h1 .word, p .line {
 
 #pbc-label,
 #pbc-outro-label {
-    font-size : 0.9rem;
+    font-size: 0.9rem;
 }
-
 
 .pbc-svg-strokes,
 .pbc-svg-strokes svg {
@@ -131,24 +143,17 @@ h1 .word, p .line {
     will-change: transform;
 }
 
+/* Cyan stroke glowing outline */
 .stroke-progress {
     stroke: #00F0FF;
     filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.45));
 }
 
-
+/* ==========================================================================
+   Navigation Bar & Scroll Progress Indicator (Hidden per specification)
+   ========================================================================== */
 nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    padding: 2rem;
-    width: auto;
-    max-width: calc(100% - 14rem);
-    display: flex;
-    gap: 3.5rem;
-    z-index: 5;
-    color: var(--base-100);
-    opacity: 0;
+    display: none !important;
 }
 
 nav p {
@@ -159,12 +164,24 @@ nav p {
     letter-spacing: 0.15rem;
 }
 
+/* ==========================================================================
+   Main Container & Pinned Hero Section
+   ========================================================================== */
+
+/*
+ * Total scroll height (750vh):
+ * Allows ample scroll distance to smoothly choreograph:
+ * - Phase 1 (0.0 -> 0.32): Sliced Gooey Hero meltdown & marquee entry
+ * - Phase 2 (0.32 -> 0.66): Quote 1 exit -> Quote 2 enter
+ * - Phase 3 (0.66 -> 1.0): Quote 2 exit -> Quote 3 enter
+ */
 .container {
     position: relative;
     width: 100%;
-    height: 600vh;
+    height: 750vh;
 }
 
+/* Pinned hero viewport */
 .hero {
     position: fixed;
     top: 0;
@@ -179,6 +196,7 @@ nav p {
     z-index: 1;
 }
 
+/* Wipe curtain: Unmasks the hero viewport in sync with preloader exit */
 .hero .preloader-revealer {
     position: absolute;
     top: 0;
@@ -191,6 +209,112 @@ nav p {
     z-index: 10;
 }
 
+/* ==========================================================================
+   Sliced Gooey Hero (3D Canvas & Typography Overlay)
+   ========================================================================== */
+.sliced-gooey-hero {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    pointer-events: auto;
+    will-change: transform, opacity;
+}
+
+/* Three.js canvas: pan-y allows native vertical scrolling on touch devices */
+#gooey-hero-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: pan-y;
+}
+
+/*
+ * Live contentEditable text overlay (Dev Branch):
+ * Positioned directly over the 3D canvas with transparent text color,
+ * allowing the user to click into the text and type while the WebGL
+ * ribbons render beneath the glowing cyan caret.
+ */
+.hero-text-input {
+    width: fit-content;
+    min-width: 1em;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    line-height: normal;
+    text-align: center;
+    white-space: pre-wrap;
+    caret-color: #00F0FF;
+    color: rgba(255, 0, 0, 0);
+    z-index: 10;
+    outline: none;
+    border: none;
+    cursor: text;
+}
+
+/* Subtle hint badge for dev branch */
+.hero-edit-hint {
+    position: absolute;
+    top: clamp(4.5rem, 8.5vh, 6rem);
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(0, 240, 255, 0.6);
+    font-family: 'Onest', monospace;
+    font-size: clamp(0.6rem, 1.4vw, 0.72rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.4s ease;
+}
+
+/* Scroll exploration cue at the bottom center */
+.hero-scroll-prompt {
+    position: absolute;
+    bottom: clamp(1.25rem, 3.5vh, 2.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    color: rgba(255, 255, 255, 0.45);
+    font-family: 'Onest', sans-serif;
+    font-size: clamp(0.58rem, 1.8vw, 0.68rem);
+    font-weight: 500;
+    letter-spacing: 0.2rem;
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 0;
+    will-change: opacity, transform;
+}
+
+/* Pulsing vertical cyan line indicator */
+.scroll-prompt-line {
+    width: 1.5px;
+    height: 28px;
+    background: linear-gradient(to bottom, #00F0FF, rgba(0, 240, 255, 0.05));
+    animation: scrollPulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes scrollPulse {
+    0%, 100% { transform: scaleY(0.2); transform-origin: top; opacity: 0.3; }
+    50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
+    51% { transform: scaleY(1); transform-origin: bottom; opacity: 1; }
+    100% { transform: scaleY(0.2); transform-origin: bottom; opacity: 0.3; }
+}
+
+/* ==========================================================================
+   Quote Typography Section (Phase 2 & 3)
+   ========================================================================== */
 .about-copy {
     position: absolute;
     left: 0;
@@ -200,6 +324,9 @@ nav p {
     padding: clamp(1.5rem, 3.5vw, 2.5rem);
     display: flex;
     gap: clamp(1.5rem, 3.5vw, 4rem);
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity;
 }
 
 .copy-block {
@@ -218,35 +345,23 @@ nav p {
     will-change: transform;
 }
 
+/* Top-right horizontal scroll progress bar (Hidden per specification) */
 .scroll-indicator {
-    position: absolute;
-    width: 10rem;
-    height: 0.1rem;
-    top: 2rem;
-    right: 2rem;
-    background-color: #2f2f2f;
-    z-index: 5;
+    display: none !important;
 }
 
-.scroll-indicator::after {
-    content: " ";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #fbfbfb;
-    transform-origin: left;
-    transform: scaleX(var(--progress, 0));
-    will-change: transform;
-}
-
+/* ==========================================================================
+   Infinite Marquee Ribbon
+   ========================================================================== */
 .marquee {
     position: absolute;
     left: 0;
     bottom: 2rem;
     width: 100%;
     height: 7rem;
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -273,6 +388,7 @@ nav p {
     object-fit: cover;
 }
 
+/* Hide default browser scrollbars for fluid design */
 ::-webkit-scrollbar {
     display: none;
 }
@@ -282,6 +398,10 @@ html, body {
     scrollbar-width: none;
     background-color: var(--base-300);
 }
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
 
 /* iPad / Tablet (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
@@ -337,7 +457,7 @@ html, body {
     }
 }
 
-/* Mobile (< 768px) */
+/* Mobile Devices (< 768px) */
 @media (max-width: 767px) {
     .pb-row {
         padding: 1.25rem;
@@ -378,20 +498,13 @@ html, body {
         font-size: 0.8rem;
     }
 
-    /* As requested: In mobile remove "First Second Event" line completely */
-    nav {
+    /* Hide navigation bar and progress indicator */
+    nav,
+    .scroll-indicator {
         display: none !important;
     }
 
-    /* Show progress bar only at top-right */
-    .scroll-indicator {
-        top: 1.25rem;
-        right: 1.25rem;
-        width: clamp(4.5rem, 22vw, 6.5rem);
-        height: 2px;
-    }
-
-    /* As requested: Stacked column on mobile, dynamically centered between top bar and marquee */
+    /* Stacked column for quote text on mobile screens */
     .about-copy {
         flex-direction: column;
         top: 45%;
@@ -411,7 +524,7 @@ html, body {
         line-height: 1.36;
     }
 
-    /* Scaled marquee for mobile */
+    /* Compact bottom marquee for mobile */
     .marquee {
         bottom: 1.25rem;
         height: 5rem;
@@ -428,7 +541,7 @@ html, body {
     }
 }
 
-/* Small mobile (e.g. iPhone SE <= 380px) */
+/* Small mobile screens (<= 380px, e.g. iPhone SE) */
 @media (max-width: 380px) {
     .pre-loader-button-container {
         width: 13rem;
