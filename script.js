@@ -51,13 +51,14 @@ function createGooeyHero() {
     const state = {
         band: {
             amount: 200,    // Number of instanced ribbon slices
-            cutoff: 6.796,  // Power cutoff exponent for ribbon bands
-            scale: 3.14,    // Z-axis spread and horizontal stretch of the quads
+            cutoff: 6.2,    // Power cutoff exponent for ribbon bands
+            scale: 4.5,     // Z-axis spread and horizontal stretch of the quads
         },
         img: {
-            blur: 1,        // Number of ping-pong blur passes
-            cutoff: 0.8722, // Text gradient falloff power
-            darken: 5,      // Darkening factor
+            blur: 4,        // Number of ping-pong blur passes for smooth gooey joints
+            cutoff: 2.0,    // Text gradient falloff power
+            darken: 3.0,    // Darkening factor
+            line_brightness: 0.25, // Soft muted grey (~25%) for background slice lines
         },
     };
 
@@ -86,11 +87,16 @@ function createGooeyHero() {
     band_ui.add(state.band, "cutoff", 1, 10).onChange(() => render_update_list.add(update_band_cutoff));
     band_ui.add(state.band, "scale", 2, 15).onChange(() => render_update_list.add(update_band_scale));
 
+    const update_line_brightness = () => {
+        band_material.uniforms.u_line_brightness.value = state.img.line_brightness;
+    };
+
     // Blur & image post-processing controls folder
     const img_ui = ui.addFolder("image");
-    img_ui.add(state.img, "blur", 1, 50, 1).onChange(() => render_update_list.add(update_blur_rt));
+    img_ui.add(state.img, "blur", 1, 30, 1).onChange(() => render_update_list.add(update_blur_rt));
     img_ui.add(state.img, "cutoff", 0.1, 10).onChange(() => render_update_list.add(update_img_cutoff));
     img_ui.add(state.img, "darken", 0, 5).onChange(() => render_update_list.add(update_fill_darken));
+    img_ui.add(state.img, "line_brightness", 0.0, 1.0, 0.05).name("line bright").onChange(() => render_update_list.add(update_line_brightness));
 
     //////// BLUR PASS
     ///////
@@ -346,6 +352,10 @@ function createGooeyHero() {
             img_cutoff: { value: state.img.cutoff },
             band_cutoff: { value: 2 ** state.band.cutoff },
             fill_darken: { value: 2 ** state.img.darken },
+            u_text_scale: { value: 1.0 },
+            u_text_opacity: { value: 1.0 },
+            u_line_opacity: { value: 1.0 },
+            u_line_brightness: { value: state.img.line_brightness },
         },
         vertexShader: /*glsl*/`
 precision highp float;
@@ -354,6 +364,7 @@ uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 uniform float amount;
 uniform float band_scale;
+uniform float u_text_scale;
 out vec2 vuv; // vertex uv
 out vec2 suv; // screen uv
 void main() {
@@ -368,7 +379,10 @@ void main() {
   float z = 2.0 * band_scale - float(gl_InstanceID) * z_step;
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, z, 1.0);
-  suv = (gl_Position.xy / gl_Position.w) * 0.5 + 0.5;
+  
+  // Center-anchored UV scaling: scales text towards center (0.5, 0.5)
+  vec2 center_suv = (gl_Position.xy / gl_Position.w) * 0.5;
+  suv = (center_suv / max(0.001, u_text_scale)) + 0.5;
 }`,
         fragmentShader: /*glsl*/`
 precision highp float;
@@ -378,19 +392,36 @@ uniform sampler2D map;
 uniform float img_cutoff;
 uniform float band_cutoff;
 uniform float fill_darken;
+uniform float u_text_opacity;
+uniform float u_line_opacity;
+uniform float u_line_brightness;
 out vec3 Color;
 
 void main() {
   float y = 1.0 - vuv.y;
   if (y < 0.005 || y > 0.995) discard;
 
-  float a = texture(map, suv).r;
-  a *= pow(y, img_cutoff);
-  y = pow(y, band_cutoff);
-  a = 1.0 - (1.0 - a) * (1.0 - y); // "screen" blending
+  // Global discard when both text and lines have completely faded
+  if (u_text_opacity <= 0.001 && u_line_opacity <= 0.001) discard;
+
+  // Sample blurred text texture within valid [0, 1] screen bounds
+  float raw_text = (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) ? 0.0 : texture(map, suv).r;
+
+  float text_a = raw_text * pow(y, img_cutoff);
+  float line_y = pow(y, band_cutoff);
+
+  // Screen blending of text and lines geometry
+  float a = 1.0 - (1.0 - text_a) * (1.0 - line_y);
   if (a < 0.5) discard;
 
-  Color = vec3(1.0); // Pure solid white inside the cutouts with zero grey gradient
+  // Discern text region from background slice lines:
+  // Inside text region: pure solid white (1.0) faded by u_text_opacity
+  // Outside text region (background lines): soft muted grey (~0.25) faded by u_line_opacity
+  float is_text = smoothstep(0.04, 0.28, raw_text);
+  vec3 text_col = vec3(1.0) * u_text_opacity;
+  vec3 line_col = vec3(u_line_brightness) * u_line_opacity;
+
+  Color = mix(line_col, text_col, is_text);
 }`,
     });
 
@@ -451,22 +482,35 @@ void main() {
         setMeltdown: (progress) => {
             const heroEl = document.querySelector(".sliced-gooey-hero");
             if (heroEl) {
-                // Gradually decrease Hero Text size as user scrolls down
-                const textScale = Math.max(0.35, 1.0 - Math.pow(progress, 0.85) * 0.65);
-                // Smooth opacity fade out
-                const alpha = Math.max(0, 1.0 - Math.pow(progress, 1.4));
+                // Keep the hero section full screen at scale: 1.0 (no whole-section box shrinking!)
                 gsap.set(heroEl, {
-                    scale: textScale,
-                    opacity: alpha,
-                    transformOrigin: "center center",
+                    scale: 1.0,
                     pointerEvents: progress > 0.02 ? "none" : "auto",
                 });
             }
             if (input_canvas.input) {
                 input_canvas.input.style.pointerEvents = progress > 0.02 ? "none" : "auto";
+                // Match live editable input scale and opacity with text scale on dev
+                const textScale = Math.max(0.35, 1.0 - Math.pow(progress, 0.85) * 0.65);
+                const alpha = Math.max(0, 1.0 - Math.pow(progress, 1.3));
+                gsap.set(input_canvas.input, {
+                    scale: textScale,
+                    opacity: alpha,
+                    transformOrigin: "center center",
+                });
             }
             if (band_material) {
-                band_material.uniforms.band_scale.value = state.band.scale + progress * 4.0;
+                // Text scales down inside 3D space
+                const textScale = Math.max(0.35, 1.0 - Math.pow(progress, 0.85) * 0.65);
+                band_material.uniforms.u_text_scale.value = textScale;
+                
+                // Text slowly fades away
+                const textOpacity = Math.max(0, 1.0 - Math.pow(progress, 1.3));
+                band_material.uniforms.u_text_opacity.value = textOpacity;
+
+                // Background lines slowly fade away across the full screen
+                const lineOpacity = Math.max(0, 1.0 - Math.pow(progress, 1.05));
+                band_material.uniforms.u_line_opacity.value = lineOpacity;
             }
         },
         destroy: () => {
@@ -486,6 +530,7 @@ void main() {
 function init() {
     let preloaderComplete = false;
     const gooeyHero = createGooeyHero();
+    window.gooeyHero = gooeyHero;
 
     // Lock page scroll during preloader
     document.body.style.overflow = "hidden";
