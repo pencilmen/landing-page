@@ -168,7 +168,7 @@ function createGooeyHero() {
     //////// INPUT CANVAS (with live contentEditable span in dev branch)
     ///////
     // Texture downscaling factor for optimal Gaussian blur performance
-    const input_scale = 1 / 2 / pr;
+    const input_scale = 0.5;
 
     const new_input_canvas = (width, height, scale, text) => {
         let cw = width * scale;
@@ -283,7 +283,7 @@ function createGooeyHero() {
             const min_ratio = Math.min(width_ratio, height_ratio);
 
             font_size = Math.max(8, (measure_size * min_ratio) | 0);
-            input.style.font = get_font((font_size / scale / pr) | 0, "900");
+            input.style.font = get_font((font_size / scale) | 0, "900");
         };
 
         // Clears and draws the measured typography onto the off-screen canvas
@@ -490,10 +490,8 @@ void main() {
             }
         }
 
-        const width = w * pr;
-        const height = h * pr;
-        blur.setSize(width * input_scale, height * input_scale);
         input_canvas.resize(w, h);
+        blur.setSize(input_canvas.canvas.width, input_canvas.canvas.height);
         input_canvas.update();
     };
 
