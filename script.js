@@ -47,15 +47,16 @@ function createGooeyHero() {
     const ui = new GUI();
     ui.close(); // Closed by default to keep the viewport unobscured
 
-    // Parameters configured from control values
+    // Control parameters: blur starts from 0 for crystal-clear readability on iPad & mobile
+    const isMobileOrTablet = typeof window !== "undefined" && window.innerWidth < 1024;
     const state = {
         band: {
             amount: 200,    // Number of instanced ribbon slices
-            cutoff: 6.2,    // Power cutoff exponent for ribbon bands
+            cutoff: 6.238,  // Power cutoff exponent for ribbon bands
             scale: 4.5,     // Z-axis spread and horizontal stretch of the quads
         },
         img: {
-            blur: 4,        // Number of ping-pong blur passes for smooth gooey joints
+            blur: isMobileOrTablet ? 0 : 1, // 0 on iPad/mobile so "Visual Designer" is sharp and readable
             cutoff: 2.0,    // Text gradient falloff power
             darken: 3.0,    // Darkening factor
             line_brightness: 0.25, // Soft muted grey (~25%) for background slice lines
@@ -93,7 +94,7 @@ function createGooeyHero() {
 
     // Blur & image post-processing controls folder
     const img_ui = ui.addFolder("image");
-    img_ui.add(state.img, "blur", 1, 30, 1).onChange(() => render_update_list.add(update_blur_rt));
+    img_ui.add(state.img, "blur", 0, 30, 1).onChange(() => render_update_list.add(update_blur_rt));
     img_ui.add(state.img, "cutoff", 0.1, 10).onChange(() => render_update_list.add(update_img_cutoff));
     img_ui.add(state.img, "darken", 0, 5).onChange(() => render_update_list.add(update_fill_darken));
     img_ui.add(state.img, "line_brightness", 0.0, 1.0, 0.05).name("line bright").onChange(() => render_update_list.add(update_line_brightness));
