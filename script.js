@@ -47,18 +47,18 @@ function createGooeyHero() {
     const ui = new GUI();
     ui.close(); // Closed by default to keep the viewport unobscured
 
-    // Control parameters: blur starts from 0 for crystal-clear readability on iPad & mobile
+    // Control parameters: tuned for crystal-clear readability and fluid 3D ribbon effect
     const isMobileOrTablet = typeof window !== "undefined" && window.innerWidth < 1024;
     const state = {
         band: {
             amount: 200,    // Number of instanced ribbon slices
-            cutoff: 6.238,  // Power cutoff exponent for ribbon bands
-            scale: 4.5,     // Z-axis spread and horizontal stretch of the quads
+            cutoff: 6.796,  // Power cutoff exponent for ribbon bands
+            scale: 3.14,    // Z-axis spread and horizontal stretch of the quads
         },
         img: {
-            blur: isMobileOrTablet ? 0 : 1, // 0 on iPad/mobile so "Visual Designer" is sharp and readable
-            cutoff: 2.0,    // Text gradient falloff power
-            darken: 3.0,    // Darkening factor
+            blur: isMobileOrTablet ? 0.25 : 1, // 0.25 on iPad & mobile keeps "Visual Designer" sharp & readable
+            cutoff: 0.8722, // Text gradient falloff power
+            darken: 5.0,    // Darkening factor
             line_brightness: 0.25, // Soft muted grey (~25%) for background slice lines
         },
     };
@@ -86,17 +86,22 @@ function createGooeyHero() {
     // Ribbon band controls folder
     const band_ui = ui.addFolder("bands");
     band_ui.add(state.band, "cutoff", 1, 10).onChange(() => render_update_list.add(update_band_cutoff));
-    band_ui.add(state.band, "scale", 2, 15).onChange(() => render_update_list.add(update_band_scale));
+    band_ui.add(state.band, "scale", 1, 15).onChange(() => render_update_list.add(update_band_scale));
 
     const update_line_brightness = () => {
         band_material.uniforms.u_line_brightness.value = state.img.line_brightness;
     };
 
+    let blurUserOverridden = false;
+
     // Blur & image post-processing controls folder
     const img_ui = ui.addFolder("image");
-    img_ui.add(state.img, "blur", 0, 30, 1).onChange(() => render_update_list.add(update_blur_rt));
-    img_ui.add(state.img, "cutoff", 0.1, 10).onChange(() => render_update_list.add(update_img_cutoff));
-    img_ui.add(state.img, "darken", 0, 5).onChange(() => render_update_list.add(update_fill_darken));
+    const blurController = img_ui.add(state.img, "blur", 0, 10, 0.05).onChange(() => {
+        blurUserOverridden = true;
+        render_update_list.add(update_blur_rt);
+    });
+    img_ui.add(state.img, "cutoff", 0.01, 10).onChange(() => render_update_list.add(update_img_cutoff));
+    img_ui.add(state.img, "darken", 0, 10).onChange(() => render_update_list.add(update_fill_darken));
     img_ui.add(state.img, "line_brightness", 0.0, 1.0, 0.05).name("line bright").onChange(() => render_update_list.add(update_line_brightness));
 
     //////// BLUR PASS
@@ -115,20 +120,41 @@ function createGooeyHero() {
             this.y_pass = new ShaderPass(VerticalBlurShader);
             this.rt_a = new THREE.WebGLRenderTarget(width, height, { flipY });
             this.rt_b = this.rt_a.clone();
+            this.width = width;
+            this.height = height;
         }
         setSize(width, height) {
-            this.rt_a.setSize(width, height);
-            this.rt_b.setSize(width, height);
+            this.width = Math.max(1, width);
+            this.height = Math.max(1, height);
+            this.rt_a.setSize(this.width, this.height);
+            this.rt_b.setSize(this.width, this.height);
             this.renderer.initRenderTarget(this.rt_a);
             this.renderer.initRenderTarget(this.rt_b);
-            this.x_pass.uniforms.h.value = 1 / width;
-            this.y_pass.uniforms.v.value = 1 / height;
+            this.x_pass.uniforms.h.value = 1 / this.width;
+            this.y_pass.uniforms.v.value = 1 / this.height;
         }
-        render(texture, repeat) {
+        render(texture, blurAmount) {
             this.renderer.copyTextureToTexture(texture, this.rt_a.texture);
-            for (let i = 0; i < repeat; i++) {
+            if (blurAmount <= 0.001) {
+                this.renderer.setRenderTarget(null);
+                return;
+            }
+            if (blurAmount < 1.0) {
+                // Sub-pixel fractional Gaussian blur: scales step radius directly (e.g. 0.25x)
+                this.x_pass.uniforms.h.value = (1 / this.width) * blurAmount;
+                this.y_pass.uniforms.v.value = (1 / this.height) * blurAmount;
                 this.x_pass.render(this.renderer, this.rt_b, this.rt_a, 0, false);
                 this.y_pass.render(this.renderer, this.rt_a, this.rt_b, 0, false);
+            } else {
+                // Multi-pass Gaussian blur for values >= 1.0
+                const passes = Math.round(blurAmount);
+                const stepScale = blurAmount / passes;
+                this.x_pass.uniforms.h.value = (1 / this.width) * stepScale;
+                this.y_pass.uniforms.v.value = (1 / this.height) * stepScale;
+                for (let i = 0; i < passes; i++) {
+                    this.x_pass.render(this.renderer, this.rt_b, this.rt_a, 0, false);
+                    this.y_pass.render(this.renderer, this.rt_a, this.rt_b, 0, false);
+                }
             }
             this.renderer.setRenderTarget(null);
         }
@@ -455,6 +481,14 @@ void main() {
         const w = window.innerWidth;
         const h = window.innerHeight;
         renderer.setSize(w, h, false);
+
+        if (!blurUserOverridden) {
+            const isMobile = w < 1024;
+            state.img.blur = isMobile ? 0.25 : 1;
+            if (blurController && typeof blurController.updateDisplay === "function") {
+                blurController.updateDisplay();
+            }
+        }
 
         const width = w * pr;
         const height = h * pr;
