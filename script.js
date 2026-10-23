@@ -483,8 +483,12 @@ void main() {
             const heroEl = document.querySelector(".sliced-gooey-hero");
             if (heroEl) {
                 // Keep the hero section full screen at scale: 1.0 (no whole-section box shrinking!)
+                // Smoothly fade heroEl CSS opacity to 0 as it completes and hide it at 1.0
+                const heroAlpha = Math.max(0, 1.0 - Math.pow(progress, 1.5));
                 gsap.set(heroEl, {
                     scale: 1.0,
+                    opacity: heroAlpha,
+                    display: progress >= 1.0 ? "none" : "flex",
                     pointerEvents: progress > 0.02 ? "none" : "auto",
                 });
             }

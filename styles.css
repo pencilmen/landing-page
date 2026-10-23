@@ -327,6 +327,7 @@ nav p {
     opacity: 0;
     pointer-events: none;
     will-change: opacity;
+    z-index: 4;
 }
 
 .copy-block {
