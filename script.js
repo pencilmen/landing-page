@@ -580,7 +580,7 @@ function initSpotlightHeader() {
 
     const CONFIG = {
         proximityRadius: 300,
-        smoothing: 0.28, // Snappy, buttery smooth tracking with zero perceived lag
+        smoothing: 0.12, // Matches standalone header fluid curve without layout thrashing
     };
 
     const rootStyles = getComputedStyle(document.documentElement);
@@ -594,6 +594,7 @@ function initSpotlightHeader() {
     const splitTitle = SplitText.create(title, {
         type: "lines, words, chars",
         linesClass: "spotlight-line",
+        charsClass: "char",
     });
 
     title.classList.add("is-split");
@@ -616,36 +617,46 @@ function initSpotlightHeader() {
         };
     });
 
+    let isActive = true;
+    let needsAnimation = false;
+
     const cacheCharacterCenters = () => {
-        characters.forEach((character) => {
+        for (let i = 0; i < characters.length; i++) {
+            const character = characters[i];
             const rect = character.element.getBoundingClientRect();
             character.centerX = rect.left + rect.width / 2 + window.scrollX;
             character.centerY = rect.top + rect.height / 2 + window.scrollY;
-        });
+        }
     };
 
-    // Zero DOM mutations in the pointer listener: only updates in-memory targets
+    // Zero DOM mutations in pointer listener: only updates in-memory targets
     const handlePointerMove = (event) => {
-        const pageX = event.pageX ?? (event.touches && event.touches[0] ? event.touches[0].pageX : 0);
-        const pageY = event.pageY ?? (event.touches && event.touches[0] ? event.touches[0].pageY : 0);
+        if (!isActive) return;
+        const clientX = event.clientX ?? (event.touches && event.touches[0] ? event.touches[0].clientX : 0);
+        const clientY = event.clientY ?? (event.touches && event.touches[0] ? event.touches[0].clientY : 0);
+        const pageX = clientX + window.scrollX;
+        const pageY = clientY + window.scrollY;
 
         for (let i = 0; i < characters.length; i++) {
             const character = characters[i];
             const dx = pageX - character.centerX;
             const dy = pageY - character.centerY;
-            const distance = Math.hypot(dx, dy);
+            const distSq = dx * dx + dy * dy;
+            const radiusSq = CONFIG.proximityRadius * CONFIG.proximityRadius;
 
-            if (distance >= CONFIG.proximityRadius) {
+            if (distSq >= radiusSq) {
                 character.targetWeight = character.baseWeight;
                 character.shouldGlow = false;
             } else {
+                const distance = Math.sqrt(distSq);
                 const proximity = 1 - distance / CONFIG.proximityRadius;
                 character.targetWeight = Math.round(
                     character.baseWeight + (character.hoverWeight - character.baseWeight) * proximity
                 );
-                character.shouldGlow = proximity > 0.12;
+                character.shouldGlow = proximity > 0.15;
             }
         }
+        needsAnimation = true;
     };
 
     const resetFontWeights = () => {
@@ -654,19 +665,22 @@ function initSpotlightHeader() {
             character.targetWeight = character.baseWeight;
             character.shouldGlow = false;
         }
+        needsAnimation = true;
     };
 
-    // RAF ticker loop running at display refresh rate (60Hz / 120Hz)
+    // RAF ticker loop running at display refresh rate (60Hz / 120Hz) with idle bailout
     const animateFontWeights = () => {
+        if (!isActive || !needsAnimation) return;
         const delta = gsap.ticker.deltaRatio();
         const smoothingFactor = 1 - Math.pow(1 - CONFIG.smoothing, delta);
+        let anyPending = false;
 
         for (let i = 0; i < characters.length; i++) {
             const character = characters[i];
 
-            // 1. Interpolate font weight
             const weightDifference = character.targetWeight - character.currentWeight;
-            if (Math.abs(weightDifference) > 0.4) {
+            if (Math.abs(weightDifference) >= 0.5) {
+                anyPending = true;
                 character.currentWeight += weightDifference * smoothingFactor;
                 const roundedWeight = Math.round(character.currentWeight);
                 if (roundedWeight !== character.renderWeight) {
@@ -681,7 +695,6 @@ function initSpotlightHeader() {
                 }
             }
 
-            // 2. Efficient class toggle only when proximity threshold changes
             if (character.shouldGlow !== character.isGlowing) {
                 character.isGlowing = character.shouldGlow;
                 if (character.isGlowing) {
@@ -691,6 +704,7 @@ function initSpotlightHeader() {
                 }
             }
         }
+        needsAnimation = anyPending;
     };
 
     cacheCharacterCenters();
@@ -703,6 +717,7 @@ function initSpotlightHeader() {
     return {
         cacheCharacterCenters,
         setTransition: (progress) => {
+            isActive = progress < 1.0;
             const alpha = Math.max(0, 1.0 - progress);
             const scale = Math.max(0.88, 1.0 - progress * 0.12);
             gsap.set(spotlight, {
@@ -717,13 +732,15 @@ function initSpotlightHeader() {
 
 function init() {
     let preloaderComplete = false;
-    const gooeyHero = createGooeyHero();
+    const gooeyEl = document.querySelector(".sliced-gooey-hero");
+    const isGooeyVisible = gooeyEl && getComputedStyle(gooeyEl).display !== "none";
+    const gooeyHero = isGooeyVisible ? createGooeyHero() : null;
     window.gooeyHero = gooeyHero;
     const spotlightHeader = initSpotlightHeader();
     window.spotlightHeader = spotlightHeader;
 
     // Initial hero presentation: Spotlight header is primary opening; Gooey Hero starts un-melted at opacity 0
-    gsap.set(".sliced-gooey-hero", { opacity: 0, pointerEvents: "none" });
+    if (gooeyEl) gsap.set(gooeyEl, { opacity: 0, pointerEvents: "none" });
     if (spotlightHeader) spotlightHeader.setTransition(0);
 
     // Lock page scroll during preloader
@@ -778,6 +795,7 @@ function init() {
     });
 
     // Infinite Marquee: Duplicate items for seamless continuous looping
+    const marqueeEl = document.querySelector(".marquee");
     const marqueeTrack = document.querySelector(".marquee-track");
     if (marqueeTrack) {
         const items = gsap.utils.toArray(".marquee-item");
@@ -786,10 +804,16 @@ function init() {
 
     let marqueePosition = 0;
     let smoothVelocity = 0;
+    // Cache track width outside the animation ticker to avoid per-frame forced layout reflow
+    let cachedTrackWidth = marqueeTrack ? marqueeTrack.scrollWidth / 2 : 0;
+    let isMarqueeVisible = false;
+    window.addEventListener("resize", () => {
+        if (marqueeTrack) cachedTrackWidth = marqueeTrack.scrollWidth / 2;
+    });
 
     // Velocity-reactive marquee loop on GSAP ticker
     gsap.ticker.add(() => {
-        if (!marqueeTrack) return;
+        if (!marqueeTrack || !isMarqueeVisible || cachedTrackWidth <= 0) return;
         smoothVelocity += (targetVelocity - smoothVelocity) * 0.5;
 
         const baseSpeed = 0.45;
@@ -797,8 +821,7 @@ function init() {
 
         marqueePosition -= speed;
 
-        const trackWidth = marqueeTrack.scrollWidth / 2;
-        if (marqueePosition <= -trackWidth) {
+        if (marqueePosition <= -cachedTrackWidth) {
             marqueePosition = 0;
         }
 
@@ -931,6 +954,7 @@ function init() {
 
                 // Hand off to Quote 0 and Marquee between 0.18 and 0.35
                 if (scrollProgress >= 0.18) {
+                    isMarqueeVisible = true;
                     const quoteIntro = (scrollProgress - 0.18) / 0.17;
                     gsap.set([".about-copy", ".marquee"], {
                         opacity: quoteIntro,
@@ -940,6 +964,7 @@ function init() {
                         gsap.set(w, { yPercent: (1 - quoteIntro) * 100 });
                     });
                 } else {
+                    isMarqueeVisible = false;
                     gsap.set([".about-copy", ".marquee"], {
                         opacity: 0,
                         pointerEvents: "none",
@@ -953,6 +978,7 @@ function init() {
             }
             // Phase 2: Quote 0 -> Quote 1 (0.35 -> 0.68)
             else if (scrollProgress <= 0.68) {
+                isMarqueeVisible = true;
                 if (spotlightHeader) spotlightHeader.setTransition(1.0);
                 if (gooeyHero) gooeyHero.setMeltdown(1.0);
                 gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
@@ -964,6 +990,7 @@ function init() {
             }
             // Phase 3: Quote 1 -> Quote 2 (0.68 -> 1.00)
             else {
+                isMarqueeVisible = true;
                 if (spotlightHeader) spotlightHeader.setTransition(1.0);
                 if (gooeyHero) gooeyHero.setMeltdown(1.0);
                 gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
@@ -1035,6 +1062,7 @@ function init() {
                             document.body.style.overflow = "auto";
                             lenis.start();
                             ScrollTrigger.refresh();
+                            if (spotlightHeader) spotlightHeader.cacheCharacterCenters();
                             gsap.to(".spotlight-scroll-prompt", { opacity: 1, duration: 1, ease: "power2.out" });
                         },
                     },

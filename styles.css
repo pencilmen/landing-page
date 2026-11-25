@@ -15,6 +15,11 @@
     --base-100: #fff;       /* Pure white highlights and text */
     --base-200: #7a7a7a;    /* Muted secondary grey text & borders */
     --base-300: #000;       /* Void black background */
+    --accent: #00F0FF;      /* Electric cyan proximity accent */
+    --font-display: "Big Shoulder Display", sans-serif;
+    --font-weight-thin: 100;
+    --font-weight-medium: 500;
+    --font-weight-black: 900;
 }
 
 /* Base reset */
@@ -239,15 +244,14 @@ nav p {
 }
 
 .spotlight .spotlight-title {
-    width: 50%;
-    max-width: 850px;
+    width: 45%;
     margin: 0 auto;
     text-transform: uppercase;
     font-family: var(--font-display);
-    font-size: clamp(2.8rem, 6.2vw, 7.5rem);
+    font-size: clamp(3.5rem, 8vw, 11rem);
     font-weight: var(--font-weight-black);
     letter-spacing: 0.02em;
-    line-height: 0.92;
+    line-height: 0.9;
     font-kerning: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -267,22 +271,21 @@ nav p {
     text-align: center;
 }
 
-/* Neutralize global preloader h1 .word transform rule */
+/* Neutralize global preloader h1 .word rule to prevent extra compositing layers */
 .spotlight-title .word {
+    position: static;
     transform: none !important;
+    will-change: auto;
     display: inline-block;
 }
 
 .spotlight-title .char {
     display: inline-block;
-    will-change: font-weight;
-    transition: color 0.12s ease-out, text-shadow 0.12s ease-out;
 }
 
-/* Instantaneous electric cyan proximity bloom with zero layout recalculation */
+/* Crisp electric cyan highlight with zero Gaussian blur rasterization overhead */
 .spotlight-title .char.char-glow {
-    color: #00F0FF;
-    text-shadow: 0 0 20px rgba(0, 240, 255, 0.75), 0 0 8px rgba(0, 240, 255, 0.45);
+    color: var(--accent, #00F0FF);
 }
 
 .spotlight-title [data-weight="thin"] {
