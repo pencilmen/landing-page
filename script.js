@@ -564,16 +564,161 @@ void main() {
  * Configures Lenis smooth scrolling, terminal preloader intro,
  * and ScrollTrigger multi-phase transitions.
  */
+/**
+ * Initializes the Interactive Variable-Font Spotlight Header:
+ * Splits title characters and tracks cursor proximity to dynamically interpolate
+ * character font weights with electric cyan proximity glow.
+ */
+function initSpotlightHeader() {
+    const spotlight = document.querySelector(".spotlight");
+    const title = document.querySelector(".spotlight-title");
+    if (!spotlight || !title) return null;
+
+    const CONFIG = {
+        proximityRadius: 300,
+        smoothing: 0.1,
+    };
+
+    const rootStyles = getComputedStyle(document.documentElement);
+    const getFontWeight = (name) => 
+        parseFloat(rootStyles.getPropertyValue(`--font-weight-${name}`)) || (name === "thin" ? 100 : name === "medium" ? 500 : 900);
+
+    const WEIGHT_THIN = getFontWeight("thin");
+    const WEIGHT_BLACK = getFontWeight("black");
+    const WEIGHT_MIDPOINT = (WEIGHT_THIN + WEIGHT_BLACK) / 2;
+
+    const splitTitle = SplitText.create(title, {
+        type: "lines, words, chars",
+        linesClass: "spotlight-line",
+    });
+
+    title.classList.add("is-split");
+
+    const characters = splitTitle.chars.map((element) => {
+        const weightName = element.closest("[data-weight]")?.dataset.weight ?? "black";
+        const baseWeight = getFontWeight(weightName);
+
+        return {
+            element,
+            baseWeight,
+            hoverWeight: baseWeight > WEIGHT_MIDPOINT ? WEIGHT_THIN : WEIGHT_BLACK,
+            currentWeight: baseWeight,
+            targetWeight: baseWeight,
+            renderWeight: baseWeight,
+            centerX: 0,
+            centerY: 0,
+        };
+    });
+
+    const cacheCharacterCenters = () => {
+        characters.forEach((character) => {
+            const rect = character.element.getBoundingClientRect();
+            character.centerX = rect.left + rect.width / 2 + window.scrollX;
+            character.centerY = rect.top + rect.height / 2 + window.scrollY;
+        });
+    };
+
+    const handlePointerMove = (event) => {
+        const pageX = event.pageX ?? (event.touches && event.touches[0] ? event.touches[0].pageX : 0);
+        const pageY = event.pageY ?? (event.touches && event.touches[0] ? event.touches[0].pageY : 0);
+
+        characters.forEach((character) => {
+            const distance = Math.hypot(
+                pageX - character.centerX,
+                pageY - character.centerY
+            );
+
+            const proximity = gsap.utils.clamp(
+                0,
+                1,
+                1 - distance / CONFIG.proximityRadius
+            );
+
+            character.targetWeight = Math.round(
+                gsap.utils.interpolate(
+                    character.baseWeight,
+                    character.hoverWeight,
+                    proximity
+                )
+            );
+
+            // Dynamic electric cyan proximity glow
+            if (proximity > 0.05) {
+                const glowIntensity = (proximity * 22).toFixed(1);
+                const glowAlpha = (proximity * 0.7).toFixed(2);
+                character.element.style.textShadow = `0 0 ${glowIntensity}px rgba(0, 240, 255, ${glowAlpha})`;
+            } else {
+                character.element.style.textShadow = "none";
+            }
+        });
+    };
+
+    const resetFontWeights = () => {
+        characters.forEach((character) => {
+            character.targetWeight = character.baseWeight;
+            character.element.style.textShadow = "none";
+        });
+    };
+
+    const animateFontWeights = () => {
+        const smoothingFactor = 1 - Math.pow(1 - CONFIG.smoothing, gsap.ticker.deltaRatio());
+
+        characters.forEach((character) => {
+            const weightDifference = character.targetWeight - character.currentWeight;
+            if (weightDifference === 0) return;
+
+            character.currentWeight = Math.abs(weightDifference) < 0.5
+                ? character.targetWeight
+                : character.currentWeight + weightDifference * smoothingFactor;
+
+            const roundedWeight = Math.round(character.currentWeight);
+            if (roundedWeight === character.renderWeight) return;
+
+            character.renderWeight = roundedWeight;
+            character.element.style.fontWeight = roundedWeight;
+        });
+    };
+
+    cacheCharacterCenters();
+
+    gsap.ticker.add(animateFontWeights);
+    spotlight.addEventListener("pointermove", handlePointerMove);
+    spotlight.addEventListener("pointerleave", resetFontWeights);
+    window.addEventListener("resize", cacheCharacterCenters);
+
+    return {
+        cacheCharacterCenters,
+        setTransition: (progress) => {
+            // progress: 0.0 (fully active) -> 1.0 (fully dissolved into gooey hero)
+            const alpha = Math.max(0, 1.0 - progress);
+            const scale = Math.max(0.88, 1.0 - progress * 0.12);
+            gsap.set(spotlight, {
+                opacity: alpha,
+                scale: scale,
+                display: progress >= 1.0 ? "none" : "flex",
+                pointerEvents: progress > 0.05 ? "none" : "auto",
+            });
+        }
+    };
+}
+
 function init() {
     let preloaderComplete = false;
     const gooeyHero = createGooeyHero();
     window.gooeyHero = gooeyHero;
+    const spotlightHeader = initSpotlightHeader();
+    window.spotlightHeader = spotlightHeader;
+
+    // Initial hero presentation: Spotlight header is primary opening; Gooey Hero starts un-melted at opacity 0
+    gsap.set(".sliced-gooey-hero", { opacity: 0, pointerEvents: "none" });
+    if (spotlightHeader) spotlightHeader.setTransition(0);
 
     // Lock page scroll during preloader
     document.body.style.overflow = "hidden";
 
     // Setup Lenis smooth scrolling (starts stopped until preloader finishes)
     const lenis = new Lenis();
+    window.lenis = lenis;
     lenis.stop();
 
     let targetVelocity = 0;
@@ -744,7 +889,110 @@ function init() {
             "-=0.75",
         );
 
-    // Preloader Exit & Hero Reveal
+        /*
+     * Multi-Phase Scroll Choreography (850vh total track):
+     * - Phase 0 (0.00 -> 0.15): Interactive Spotlight Header dissolves into 3D Sliced Gooey Hero.
+     * - Phase 1 (0.15 -> 0.42): 3D Sliced Gooey Hero melts down; Quote 0 & Marquee fade in (0.28 -> 0.42).
+     * - Phase 2 (0.42 -> 0.71): Quote 0 exits, Quote 1 enters.
+     * - Phase 3 (0.71 -> 1.00): Quote 1 exits, Quote 2 enters.
+     */
+    ScrollTrigger.create({
+                                trigger: ".container",
+                                start: "top top",
+                                end: "bottom bottom",
+                                onUpdate: (self) => {
+                                    const scrollProgress = self.progress;
+
+                                    if (indicator) {
+                                        gsap.set(indicator, { "--progress": scrollProgress });
+                                    }
+
+                                    // Phase 0: Spotlight Header -> Sliced Gooey Hero (0.00 -> 0.15)
+                                    if (scrollProgress <= 0.15) {
+                                        const t = scrollProgress / 0.15;
+                                        if (spotlightHeader) spotlightHeader.setTransition(t);
+                                        gsap.set(".spotlight-scroll-prompt", { opacity: Math.max(0, 1 - t * 3) });
+
+                                        const heroEl = document.querySelector(".sliced-gooey-hero");
+                                        if (heroEl) {
+                                            gsap.set(heroEl, {
+                                                opacity: t,
+                                                scale: 0.92 + t * 0.08,
+                                                display: "flex",
+                                                pointerEvents: t > 0.5 ? "auto" : "none",
+                                            });
+                                        }
+                                        if (gooeyHero) gooeyHero.setMeltdown(0);
+                                        gsap.set(".hero-scroll-prompt", { opacity: Math.max(0, (t - 0.5) * 2) });
+
+                                        gsap.set([".about-copy", ".marquee"], { opacity: 0, pointerEvents: "none" });
+                                        splitInstance.forEach((inst) => inst.words.forEach((w) => gsap.set(w, { yPercent: 100 })));
+                                    }
+                                    // Phase 1: Sliced Gooey Hero Meltdown -> Quote 0 & Marquee (0.15 -> 0.42)
+                                    else if (scrollProgress <= 0.42) {
+                                        if (spotlightHeader) spotlightHeader.setTransition(1.0);
+                                        gsap.set(".spotlight-scroll-prompt", { opacity: 0 });
+
+                                        const melt = (scrollProgress - 0.15) / 0.27;
+                                        if (gooeyHero) gooeyHero.setMeltdown(melt);
+                                        gsap.set(".hero-scroll-prompt", { opacity: Math.max(0, 1 - melt * 3) });
+
+                                        // Hand off to Quote 0 and Marquee between 0.28 and 0.42
+                                        if (scrollProgress >= 0.28) {
+                                            const quoteIntro = (scrollProgress - 0.28) / 0.14;
+                                            gsap.set([".about-copy", ".marquee"], {
+                                                opacity: quoteIntro,
+                                                pointerEvents: "auto",
+                                            });
+                                            splitInstance[0].words.forEach((w) => {
+                                                gsap.set(w, { yPercent: (1 - quoteIntro) * 100 });
+                                            });
+                                        } else {
+                                            gsap.set([".about-copy", ".marquee"], {
+                                                opacity: 0,
+                                                pointerEvents: "none",
+                                            });
+                                            splitInstance[0].words.forEach((w) => {
+                                                gsap.set(w, { yPercent: 100 });
+                                            });
+                                        }
+                                        splitInstance[1].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+                                        splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+                                    }
+                                    // Phase 2: Quote 0 -> Quote 1 (0.42 -> 0.71)
+                                    else if (scrollProgress <= 0.71) {
+                                        if (spotlightHeader) spotlightHeader.setTransition(1.0);
+                                        if (gooeyHero) gooeyHero.setMeltdown(1.0);
+                                        gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
+                                        gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
+
+                                        const phase1 = (scrollProgress - 0.42) / 0.29;
+                                        animateBlock(splitInstance[0], splitInstance[1], phase1);
+                                        splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+                                    }
+                                    // Phase 3: Quote 1 -> Quote 2 (0.71 -> 1.00)
+                                    else {
+                                        if (spotlightHeader) spotlightHeader.setTransition(1.0);
+                                        if (gooeyHero) gooeyHero.setMeltdown(1.0);
+                                        gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
+                                        gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
+
+                                        const phase2 = (scrollProgress - 0.71) / 0.29;
+                                        splitInstance[0].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+                                        animateBlock(splitInstance[1], splitInstance[2], phase2);
+                                    }
+                                },
+                            });
+
+                            ScrollTrigger.refresh();
+
+                            window.addEventListener("resize", () => {
+                                ScrollTrigger.refresh();
+                            });
+
+    window.addEventListener("resize", () => ScrollTrigger.refresh());
+
+// Preloader Exit & Hero Reveal
     if (preloaderBtn) {
         preloaderBtn.addEventListener("click", () => {
             if (!preloaderComplete) return;
@@ -798,85 +1046,8 @@ function init() {
                             gsap.set(".preloader-backdrop", { display: "none" });
                             document.body.style.overflow = "auto";
                             lenis.start();
-
-                            // Fade in the subtle scroll prompt
-                            gsap.to(".hero-scroll-prompt", { opacity: 1, duration: 1, ease: "power2.out" });
-
-                            /*
-                             * ScrollTrigger Choreography:
-                             * - Total track: 750vh pinned container
-                             * - Phase 1 (0.0 -> 0.32): Sliced Gooey Hero melts down; Quote 0 & Marquee fade in (0.18 -> 0.32).
-                             * - Phase 2 (0.32 -> 0.66): Quote 0 exits, Quote 1 enters.
-                             * - Phase 3 (0.66 -> 1.0): Quote 1 exits, Quote 2 enters.
-                             */
-                            ScrollTrigger.create({
-                                trigger: ".container",
-                                start: "top top",
-                                end: "bottom bottom",
-                                onUpdate: (self) => {
-                                    const scrollProgress = self.progress;
-
-                                    if (indicator) {
-                                        gsap.set(indicator, { "--progress": scrollProgress });
-                                    }
-
-                                    // Phase 1: Sliced Gooey Hero Meltdown (0.0 -> 0.32)
-                                    if (scrollProgress <= 0.32) {
-                                        const melt = scrollProgress / 0.32;
-                                        if (gooeyHero) gooeyHero.setMeltdown(melt);
-
-                                        gsap.set(".hero-scroll-prompt", { opacity: Math.max(0, 1 - melt * 3) });
-
-                                        // Hand off to Quote 0 and Marquee between 0.18 and 0.32
-                                        if (scrollProgress >= 0.18) {
-                                            const quoteIntro = (scrollProgress - 0.18) / 0.14;
-                                            gsap.set([".about-copy", ".marquee"], {
-                                                opacity: quoteIntro,
-                                                pointerEvents: "auto",
-                                            });
-                                            splitInstance[0].words.forEach((w) => {
-                                                gsap.set(w, { yPercent: (1 - quoteIntro) * 100 });
-                                            });
-                                        } else {
-                                            gsap.set([".about-copy", ".marquee"], {
-                                                opacity: 0,
-                                                pointerEvents: "none",
-                                            });
-                                            splitInstance[0].words.forEach((w) => {
-                                                gsap.set(w, { yPercent: 100 });
-                                            });
-                                        }
-                                        splitInstance[1].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                        splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                    }
-                                    // Phase 2: Quote 0 -> Quote 1 (0.32 -> 0.66)
-                                    else if (scrollProgress <= 0.66) {
-                                        if (gooeyHero) gooeyHero.setMeltdown(1.0);
-                                        gsap.set(".hero-scroll-prompt", { opacity: 0 });
-                                        gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
-
-                                        const phase1 = (scrollProgress - 0.32) / 0.34;
-                                        animateBlock(splitInstance[0], splitInstance[1], phase1);
-                                        splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                    }
-                                    // Phase 3: Quote 1 -> Quote 2 (0.66 -> 1.0)
-                                    else {
-                                        if (gooeyHero) gooeyHero.setMeltdown(1.0);
-                                        gsap.set(".hero-scroll-prompt", { opacity: 0 });
-                                        gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
-
-                                        const phase2 = (scrollProgress - 0.66) / 0.34;
-                                        splitInstance[0].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                        animateBlock(splitInstance[1], splitInstance[2], phase2);
-                                    }
-                                },
-                            });
-
                             ScrollTrigger.refresh();
-
-                            window.addEventListener("resize", () => {
-                                ScrollTrigger.refresh();
-                            });
+                            gsap.to(".spotlight-scroll-prompt", { opacity: 1, duration: 1, ease: "power2.out" });
                         },
                     },
                     "+=0.2",

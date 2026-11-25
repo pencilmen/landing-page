@@ -1,5 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
 
+@font-face {
+    font-family: "Big Shoulder Display";
+    src: url('./header/BigShoulders.ttf') format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* ==========================================================================
    Design Tokens & Global CSS Variables
    ========================================================================== */
@@ -178,7 +186,7 @@ nav p {
 .container {
     position: relative;
     width: 100%;
-    height: 750vh;
+    height: 850vh;
 }
 
 /* Pinned hero viewport */
@@ -207,6 +215,107 @@ nav p {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
     will-change: clip-path;
     z-index: 10;
+}
+
+/* ==========================================================================
+   Spotlight Header (Interactive Variable Font Opening)
+   ========================================================================== */
+.spotlight {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--base-300);
+    color: var(--base-100);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+    z-index: 5;
+    pointer-events: auto;
+    will-change: transform, opacity;
+}
+
+.spotlight .spotlight-title {
+    width: 50%;
+    max-width: 850px;
+    margin: 0 auto;
+    text-transform: uppercase;
+    font-family: var(--font-display);
+    font-size: clamp(2.8rem, 6.2vw, 7.5rem);
+    font-weight: var(--font-weight-black);
+    letter-spacing: 0.02em;
+    line-height: 0.92;
+    font-kerning: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    cursor: default;
+    text-align: center;
+}
+
+.spotlight .spotlight-title.is-split {
+    width: auto;
+    contain: layout style;
+}
+
+.spotlight-line {
+    white-space: nowrap;
+    display: block;
+    text-align: center;
+}
+
+/* Neutralize global preloader h1 .word transform rule */
+.spotlight-title .word {
+    transform: none !important;
+    display: inline-block;
+}
+
+.spotlight-title .char {
+    display: inline-block;
+    transition: text-shadow 0.25s ease-out;
+    will-change: font-weight, text-shadow;
+}
+
+.spotlight-title [data-weight="thin"] {
+    font-weight: var(--font-weight-thin);
+}
+
+.spotlight-title [data-weight="medium"] {
+    font-weight: var(--font-weight-medium);
+}
+
+/* Subtle glowing prompt at the bottom of the spotlight header */
+.spotlight-scroll-prompt {
+    position: absolute;
+    bottom: 3.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    opacity: 0.85;
+    pointer-events: none;
+    user-select: none;
+}
+
+.spotlight-scroll-prompt span {
+    font-family: 'Onest', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.25rem;
+    text-transform: uppercase;
+    color: var(--base-100);
+    opacity: 0.6;
+}
+
+.spotlight-scroll-prompt .scroll-prompt-line {
+    width: 1px;
+    height: 32px;
+    background: linear-gradient(180deg, var(--accent, #00F0FF) 0%, transparent 100%);
+    animation: promptPulse 2s ease-in-out infinite;
 }
 
 /* ==========================================================================
