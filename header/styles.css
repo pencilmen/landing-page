@@ -1,0 +1,67 @@
+@font-face {
+    font-family: "Big Shoulder Display";
+    src: url(./BigShoulders.ttf) format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --font-display : "Big Shoulder Display", sans-serif;
+    --font-weight-thin: 100;
+    --font-weight-medium: 500;
+    --font-weight-black: 900;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+h1 {
+    text-transform: uppercase;
+    font-family: var(--font-display);
+    font-size: clamp(4rem, 8vw, 12rem);
+    font-weight : var(--font-weight-black);
+    letter-spacing: 2%;
+    line-height: 0.9;
+    font-kerning: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.spotlight {
+    position: relative;
+    width: 100%;
+    height: 100svh;
+    background-color : #f7f5f0;
+    color : #0f0f0f;
+    display : flex;
+    justify-content : center;
+    align-items : center;
+    text-align : center;
+    overflow : hidden;
+
+}
+
+.spotlight-title {
+    width : 45%;
+}
+
+.spotlight-title.is-split {
+    width : auto;
+    contain : layout style;
+}
+
+.spotlight-line {
+    white-space: nowrap;
+}
+
+[data-weight = "thin"] {
+    font-weight : var(--font-weight-thin);
+}
+
+[data-weight = "medium"] {
+    font-weight : var(--font-weight-medium);
+}
