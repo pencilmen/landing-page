@@ -45,7 +45,7 @@ function createGooeyHero() {
     //////// CONTROLS (lil-gui for dev branch)
     ///////
     const ui = new GUI();
-    ui.close(); // Closed by default to keep the viewport unobscured
+    ui.hide(); // Hidden from preview per specification // Closed by default to keep the viewport unobscured
 
     // Control parameters: tuned for crystal-clear readability and fluid 3D ribbon effect
     const isMobileOrTablet = typeof window !== "undefined" && window.innerWidth < 1024;
@@ -463,6 +463,10 @@ void main() {
     let time = 0;
 
     renderer.setAnimationLoop((t) => {
+        // Skip rendering when gooey hero is hidden from preview to eliminate GPU/CPU overhead
+        const heroEl = document.querySelector(".sliced-gooey-hero");
+        if (heroEl && getComputedStyle(heroEl).display === "none") return;
+
         // Execute scheduled uniform and blur pass updates
         for (const fn of render_update_list) fn();
         render_update_list.clear();
@@ -576,7 +580,7 @@ function initSpotlightHeader() {
 
     const CONFIG = {
         proximityRadius: 300,
-        smoothing: 0.1,
+        smoothing: 0.28, // Snappy, buttery smooth tracking with zero perceived lag
     };
 
     const rootStyles = getComputedStyle(document.documentElement);
@@ -605,6 +609,8 @@ function initSpotlightHeader() {
             currentWeight: baseWeight,
             targetWeight: baseWeight,
             renderWeight: baseWeight,
+            isGlowing: false,
+            shouldGlow: false,
             centerX: 0,
             centerY: 0,
         };
@@ -618,78 +624,85 @@ function initSpotlightHeader() {
         });
     };
 
+    // Zero DOM mutations in the pointer listener: only updates in-memory targets
     const handlePointerMove = (event) => {
         const pageX = event.pageX ?? (event.touches && event.touches[0] ? event.touches[0].pageX : 0);
         const pageY = event.pageY ?? (event.touches && event.touches[0] ? event.touches[0].pageY : 0);
 
-        characters.forEach((character) => {
-            const distance = Math.hypot(
-                pageX - character.centerX,
-                pageY - character.centerY
-            );
+        for (let i = 0; i < characters.length; i++) {
+            const character = characters[i];
+            const dx = pageX - character.centerX;
+            const dy = pageY - character.centerY;
+            const distance = Math.hypot(dx, dy);
 
-            const proximity = gsap.utils.clamp(
-                0,
-                1,
-                1 - distance / CONFIG.proximityRadius
-            );
-
-            character.targetWeight = Math.round(
-                gsap.utils.interpolate(
-                    character.baseWeight,
-                    character.hoverWeight,
-                    proximity
-                )
-            );
-
-            // Dynamic electric cyan proximity glow
-            if (proximity > 0.05) {
-                const glowIntensity = (proximity * 22).toFixed(1);
-                const glowAlpha = (proximity * 0.7).toFixed(2);
-                character.element.style.textShadow = `0 0 ${glowIntensity}px rgba(0, 240, 255, ${glowAlpha})`;
+            if (distance >= CONFIG.proximityRadius) {
+                character.targetWeight = character.baseWeight;
+                character.shouldGlow = false;
             } else {
-                character.element.style.textShadow = "none";
+                const proximity = 1 - distance / CONFIG.proximityRadius;
+                character.targetWeight = Math.round(
+                    character.baseWeight + (character.hoverWeight - character.baseWeight) * proximity
+                );
+                character.shouldGlow = proximity > 0.12;
             }
-        });
+        }
     };
 
     const resetFontWeights = () => {
-        characters.forEach((character) => {
+        for (let i = 0; i < characters.length; i++) {
+            const character = characters[i];
             character.targetWeight = character.baseWeight;
-            character.element.style.textShadow = "none";
-        });
+            character.shouldGlow = false;
+        }
     };
 
+    // RAF ticker loop running at display refresh rate (60Hz / 120Hz)
     const animateFontWeights = () => {
-        const smoothingFactor = 1 - Math.pow(1 - CONFIG.smoothing, gsap.ticker.deltaRatio());
+        const delta = gsap.ticker.deltaRatio();
+        const smoothingFactor = 1 - Math.pow(1 - CONFIG.smoothing, delta);
 
-        characters.forEach((character) => {
+        for (let i = 0; i < characters.length; i++) {
+            const character = characters[i];
+
+            // 1. Interpolate font weight
             const weightDifference = character.targetWeight - character.currentWeight;
-            if (weightDifference === 0) return;
+            if (Math.abs(weightDifference) > 0.4) {
+                character.currentWeight += weightDifference * smoothingFactor;
+                const roundedWeight = Math.round(character.currentWeight);
+                if (roundedWeight !== character.renderWeight) {
+                    character.renderWeight = roundedWeight;
+                    character.element.style.fontWeight = roundedWeight;
+                }
+            } else if (character.currentWeight !== character.targetWeight) {
+                character.currentWeight = character.targetWeight;
+                if (character.renderWeight !== character.targetWeight) {
+                    character.renderWeight = character.targetWeight;
+                    character.element.style.fontWeight = character.targetWeight;
+                }
+            }
 
-            character.currentWeight = Math.abs(weightDifference) < 0.5
-                ? character.targetWeight
-                : character.currentWeight + weightDifference * smoothingFactor;
-
-            const roundedWeight = Math.round(character.currentWeight);
-            if (roundedWeight === character.renderWeight) return;
-
-            character.renderWeight = roundedWeight;
-            character.element.style.fontWeight = roundedWeight;
-        });
+            // 2. Efficient class toggle only when proximity threshold changes
+            if (character.shouldGlow !== character.isGlowing) {
+                character.isGlowing = character.shouldGlow;
+                if (character.isGlowing) {
+                    character.element.classList.add("char-glow");
+                } else {
+                    character.element.classList.remove("char-glow");
+                }
+            }
+        }
     };
 
     cacheCharacterCenters();
 
     gsap.ticker.add(animateFontWeights);
-    spotlight.addEventListener("pointermove", handlePointerMove);
+    spotlight.addEventListener("pointermove", handlePointerMove, { passive: true });
     spotlight.addEventListener("pointerleave", resetFontWeights);
     window.addEventListener("resize", cacheCharacterCenters);
 
     return {
         cacheCharacterCenters,
         setTransition: (progress) => {
-            // progress: 0.0 (fully active) -> 1.0 (fully dissolved into gooey hero)
             const alpha = Math.max(0, 1.0 - progress);
             const scale = Math.max(0.88, 1.0 - progress * 0.12);
             gsap.set(spotlight, {
@@ -897,102 +910,77 @@ function init() {
      * - Phase 3 (0.71 -> 1.00): Quote 1 exits, Quote 2 enters.
      */
     ScrollTrigger.create({
-                                trigger: ".container",
-                                start: "top top",
-                                end: "bottom bottom",
-                                onUpdate: (self) => {
-                                    const scrollProgress = self.progress;
+        trigger: ".container",
+        start: "top top",
+        end: "bottom bottom",
+        onUpdate: (self) => {
+            const scrollProgress = self.progress;
 
-                                    if (indicator) {
-                                        gsap.set(indicator, { "--progress": scrollProgress });
-                                    }
+            if (indicator) {
+                gsap.set(indicator, { "--progress": scrollProgress });
+            }
 
-                                    // Phase 0: Spotlight Header -> Sliced Gooey Hero (0.00 -> 0.15)
-                                    if (scrollProgress <= 0.15) {
-                                        const t = scrollProgress / 0.15;
-                                        if (spotlightHeader) spotlightHeader.setTransition(t);
-                                        gsap.set(".spotlight-scroll-prompt", { opacity: Math.max(0, 1 - t * 3) });
+            // Phase 1: Spotlight Header Dissolve -> Quote 0 & Marquee Entry (0.00 -> 0.35)
+            if (scrollProgress <= 0.35) {
+                const melt = scrollProgress / 0.35;
+                if (spotlightHeader) spotlightHeader.setTransition(melt);
+                gsap.set(".spotlight-scroll-prompt", { opacity: Math.max(0, 1 - melt * 3) });
 
-                                        const heroEl = document.querySelector(".sliced-gooey-hero");
-                                        if (heroEl) {
-                                            gsap.set(heroEl, {
-                                                opacity: t,
-                                                scale: 0.92 + t * 0.08,
-                                                display: "flex",
-                                                pointerEvents: t > 0.5 ? "auto" : "none",
-                                            });
-                                        }
-                                        if (gooeyHero) gooeyHero.setMeltdown(0);
-                                        gsap.set(".hero-scroll-prompt", { opacity: Math.max(0, (t - 0.5) * 2) });
+                // Keep gooeyHero updated in background (code safely preserved)
+                if (gooeyHero) gooeyHero.setMeltdown(melt);
 
-                                        gsap.set([".about-copy", ".marquee"], { opacity: 0, pointerEvents: "none" });
-                                        splitInstance.forEach((inst) => inst.words.forEach((w) => gsap.set(w, { yPercent: 100 })));
-                                    }
-                                    // Phase 1: Sliced Gooey Hero Meltdown -> Quote 0 & Marquee (0.15 -> 0.42)
-                                    else if (scrollProgress <= 0.42) {
-                                        if (spotlightHeader) spotlightHeader.setTransition(1.0);
-                                        gsap.set(".spotlight-scroll-prompt", { opacity: 0 });
+                // Hand off to Quote 0 and Marquee between 0.18 and 0.35
+                if (scrollProgress >= 0.18) {
+                    const quoteIntro = (scrollProgress - 0.18) / 0.17;
+                    gsap.set([".about-copy", ".marquee"], {
+                        opacity: quoteIntro,
+                        pointerEvents: "auto",
+                    });
+                    splitInstance[0].words.forEach((w) => {
+                        gsap.set(w, { yPercent: (1 - quoteIntro) * 100 });
+                    });
+                } else {
+                    gsap.set([".about-copy", ".marquee"], {
+                        opacity: 0,
+                        pointerEvents: "none",
+                    });
+                    splitInstance[0].words.forEach((w) => {
+                        gsap.set(w, { yPercent: 100 });
+                    });
+                }
+                splitInstance[1].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+                splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+            }
+            // Phase 2: Quote 0 -> Quote 1 (0.35 -> 0.68)
+            else if (scrollProgress <= 0.68) {
+                if (spotlightHeader) spotlightHeader.setTransition(1.0);
+                if (gooeyHero) gooeyHero.setMeltdown(1.0);
+                gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
+                gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
 
-                                        const melt = (scrollProgress - 0.15) / 0.27;
-                                        if (gooeyHero) gooeyHero.setMeltdown(melt);
-                                        gsap.set(".hero-scroll-prompt", { opacity: Math.max(0, 1 - melt * 3) });
+                const phase1 = (scrollProgress - 0.35) / 0.33;
+                animateBlock(splitInstance[0], splitInstance[1], phase1);
+                splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+            }
+            // Phase 3: Quote 1 -> Quote 2 (0.68 -> 1.00)
+            else {
+                if (spotlightHeader) spotlightHeader.setTransition(1.0);
+                if (gooeyHero) gooeyHero.setMeltdown(1.0);
+                gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
+                gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
 
-                                        // Hand off to Quote 0 and Marquee between 0.28 and 0.42
-                                        if (scrollProgress >= 0.28) {
-                                            const quoteIntro = (scrollProgress - 0.28) / 0.14;
-                                            gsap.set([".about-copy", ".marquee"], {
-                                                opacity: quoteIntro,
-                                                pointerEvents: "auto",
-                                            });
-                                            splitInstance[0].words.forEach((w) => {
-                                                gsap.set(w, { yPercent: (1 - quoteIntro) * 100 });
-                                            });
-                                        } else {
-                                            gsap.set([".about-copy", ".marquee"], {
-                                                opacity: 0,
-                                                pointerEvents: "none",
-                                            });
-                                            splitInstance[0].words.forEach((w) => {
-                                                gsap.set(w, { yPercent: 100 });
-                                            });
-                                        }
-                                        splitInstance[1].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                        splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                    }
-                                    // Phase 2: Quote 0 -> Quote 1 (0.42 -> 0.71)
-                                    else if (scrollProgress <= 0.71) {
-                                        if (spotlightHeader) spotlightHeader.setTransition(1.0);
-                                        if (gooeyHero) gooeyHero.setMeltdown(1.0);
-                                        gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
-                                        gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
+                const phase2 = (scrollProgress - 0.68) / 0.32;
+                splitInstance[0].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
+                animateBlock(splitInstance[1], splitInstance[2], phase2);
+            }
+        },
+    });
 
-                                        const phase1 = (scrollProgress - 0.42) / 0.29;
-                                        animateBlock(splitInstance[0], splitInstance[1], phase1);
-                                        splitInstance[2].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                    }
-                                    // Phase 3: Quote 1 -> Quote 2 (0.71 -> 1.00)
-                                    else {
-                                        if (spotlightHeader) spotlightHeader.setTransition(1.0);
-                                        if (gooeyHero) gooeyHero.setMeltdown(1.0);
-                                        gsap.set([".hero-scroll-prompt", ".spotlight-scroll-prompt"], { opacity: 0 });
-                                        gsap.set([".about-copy", ".marquee"], { opacity: 1, pointerEvents: "auto" });
+    window.addEventListener("resize", () => {
+        ScrollTrigger.refresh();
+    });
 
-                                        const phase2 = (scrollProgress - 0.71) / 0.29;
-                                        splitInstance[0].words.forEach((w) => gsap.set(w, { yPercent: 100 }));
-                                        animateBlock(splitInstance[1], splitInstance[2], phase2);
-                                    }
-                                },
-                            });
-
-                            ScrollTrigger.refresh();
-
-                            window.addEventListener("resize", () => {
-                                ScrollTrigger.refresh();
-                            });
-
-    window.addEventListener("resize", () => ScrollTrigger.refresh());
-
-// Preloader Exit & Hero Reveal
+    // Preloader Exit & Hero Reveal
     if (preloaderBtn) {
         preloaderBtn.addEventListener("click", () => {
             if (!preloaderComplete) return;
